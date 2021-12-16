@@ -1,0 +1,6 @@
+- name: install samba for Ubuntu servers
+  tags: samba, ubuntu, file
+  package:
+    name:
+      - samba
+    state: latest

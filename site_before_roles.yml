@@ -1,0 +1,114 @@
+---
+
+- hosts: all
+  become: true
+  pre_tasks:
+
+  - name: install updates (CentOS)
+    tags: always
+    dnf:
+      update_cache: yes
+    changed_when: false
+    when: ansible_distribution == "CentOS"
+
+  - name: install updates (Ubuntu)
+    tags: always
+    apt:
+      update_cache: yes
+    changed_when: false
+    when: ansible_distribution == "Ubuntu"
+
+- hosts: all
+  become: true
+  tasks:
+
+  - name: add ssh key for simone
+    tags: always
+    authorized_key:
+      user: simone
+      key: '{{ lookup("file", "~/.ssh/lbarahona.pub") }}'
+
+- hosts: workstations
+  tasks:
+
+  - name: install unzip
+    package:
+      name: unzip
+      state: latest
+
+  - name: install terraform
+    unarchive:
+      src: https://releases.hashicorp.com/terraform/0.12.284/terraform_0.12.28_linux_amd64.zip
+      dest: /usr/local/bin/terraform
+      remote_src: yes
+      owner: root
+      group: root
+      mode: 0755
+
+- hosts: web_servers
+  become: true
+  tasks:
+
+  - name: install apache and php for Ubuntu servers
+    tags: apache, apache2, ubuntu
+    apt:
+      name:
+        - apache2
+        - libapache2-mod-php
+      state: latest
+    when: ansible_distribution == "Ubuntu"
+
+  - name: install apache and php for CentOS servers
+    tags: apache, httpd, centos
+    yum:
+      name:
+        - httpd
+        - php
+      state: latest
+    when: ansible_distribution == "CentOS"
+
+  - name: start httpd (CentOS)
+    tags: apache, httpd, centos
+    service:
+      name: httpd
+      state: started
+      enabled: yes
+    when: ansible_distribution == "CentOS"
+
+  - name: copy default html file for site
+    tags: apache, apache2, httpd
+    copy:
+      src: default_site.html
+      dest: /var/www/html/index.html
+      owner: root
+      group: root
+      mode: 0644
+
+- hosts: db_servers
+  tasks:
+
+  - name: install mariadb-server for Ubuntu servers
+    tags: mariadb, ubuntu, db
+    apt:
+      name:
+        - mariadb-server
+      state: latest
+    when: ansible_distribution == "Ubuntu"
+
+  - name: install mariadb-server for CentOS servers
+    tags: mariadb, centos, db
+    dnf:
+      name:
+        - mariadb
+      state: latest
+    when: ansible_distribution == "CentOS"
+
+- hosts: file_servers
+  tasks:
+
+  - name: install samba for Ubuntu servers
+    tags: samba, ubuntu, file
+    package:
+      name:
+        - samba
+      state: latest
